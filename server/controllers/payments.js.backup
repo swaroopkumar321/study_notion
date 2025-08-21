@@ -1,0 +1,235 @@
+const { instance } = require("../config/stripe")
+const Course = require("../models/Course")
+const User = require("../models/User")
+const mailSender = require("../utils/mailSender")
+const mongoose = require("mongoose")
+const {
+  courseEnrollmentEmail,
+} = require("../mail/templates/courseEnrollmentEmail")
+const { paymentSuccessEmail } = require("../mail/templates/paymentSuccessEmail")
+const CourseProgress = require("../models/CourseProgress")
+
+// Create payment intent for Stripe
+exports.capturePayment = async (req, res) => {
+  const { courses } = req.body
+  const userId = req.user.id
+
+  if (!courses || !Array.isArray(courses) || courses.length === 0) {
+    return res.json({ success: false, message: "Please Provide Course ID" })
+  }
+
+  if (!userId) {
+    return res.json({ success: false, message: "User not authenticated" })
+  }
+
+  let total_amount = 0
+
+  for (const course_id of courses) {
+    let course
+    try {
+      // Find the course by its ID
+      course = await Course.findById(course_id)
+
+      // If the course is not found, return an error
+      if (!course) {
+        return res
+          .status(404)
+          .json({ success: false, message: `Course not Found with ID: ${course_id}` })
+      }
+
+      // Check if the user is already enrolled in the course
+      const uid = new mongoose.Types.ObjectId(userId)
+      if (course.studentsEnroled.includes(uid)) {
+        return res
+          .status(200)
+          .json({ success: false, message: "Student is already Enrolled" })
+      }
+
+      // Add the price of the course to the total amount
+      total_amount += course.price
+    } catch (error) {
+      console.log(error)
+      return res.status(500).json({ success: false, message: error.message })
+    }
+  }
+
+  // Validate amount
+  if (total_amount <= 0) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "Invalid total amount" 
+    })
+  }
+
+  try {
+    // Create payment intent using Stripe
+    const paymentIntent = await instance.paymentIntents.create({
+      amount: total_amount * 100, // Amount in paise for INR
+      currency: process.env.STRIPE_CURRENCY || "inr", // Use environment variable or default to INR
+      metadata: {
+        courses: JSON.stringify(courses),
+        userId: userId
+      },
+    })
+    
+    console.log(paymentIntent)
+    res.json({
+      success: true,
+      data: {
+        client_secret: paymentIntent.client_secret,
+        payment_intent_id: paymentIntent.id,
+        amount: total_amount * 100, // Amount in paise for INR
+        currency: process.env.STRIPE_CURRENCY || "inr"
+      },
+    })
+  } catch (error) {
+    console.log(error)
+    res
+      .status(500)
+      .json({ success: false, message: "Could not initiate payment." })
+  }
+}
+
+// verify the payment
+exports.verifyPayment = async (req, res) => {
+  const { payment_intent_id, courses } = req.body
+  const userId = req.user.id
+
+  if (!payment_intent_id || !courses || !userId) {
+    return res.status(200).json({ success: false, message: "Payment Failed" })
+  }
+
+  try {
+    // Retrieve the payment intent from Stripe
+    const paymentIntent = await instance.paymentIntents.retrieve(payment_intent_id)
+    
+    // For test environment, simulate successful payment
+    if (paymentIntent.status === 'succeeded' || process.env.NODE_ENV !== 'production') {
+      await enrollStudents(courses, userId, res)
+      return res.status(200).json({ success: true, message: "Payment Verified" })
+    } else {
+      return res.status(200).json({ success: false, message: "Payment not completed" })
+    }
+  } catch (error) {
+    console.log(error)
+    return res.status(200).json({ success: false, message: "Payment verification failed" })
+  }
+}
+
+// Send Payment Success Email
+exports.sendPaymentSuccessEmail = async (req, res) => {
+  const { payment_intent_id, amount } = req.body
+
+  const userId = req.user.id
+
+  if (!payment_intent_id || !amount || !userId) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Please provide all the details" })
+  }
+
+  try {
+    const enrolledStudent = await User.findById(userId)
+
+    await mailSender(
+      enrolledStudent.email,
+      `Payment Received`,
+      paymentSuccessEmail(
+        `${enrolledStudent.firstName} ${enrolledStudent.lastName}`,
+        amount / 100,
+        payment_intent_id,
+        payment_intent_id
+      )
+    )
+  } catch (error) {
+    console.log("error in sending mail", error)
+    return res
+      .status(400)
+      .json({ success: false, message: "Could not send email" })
+  }
+}
+
+// enroll the student in the courses
+const enrollStudents = async (courses, userId, res) => {
+  if (!courses || !Array.isArray(courses) || courses.length === 0) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Please Provide valid Course IDs" })
+  }
+
+  if (!userId) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Please Provide valid User ID" })
+  }
+
+  for (const courseId of courses) {
+    try {
+      // Validate course ID format
+      if (!mongoose.Types.ObjectId.isValid(courseId)) {
+        return res
+          .status(400)
+          .json({ success: false, error: `Invalid course ID format: ${courseId}` })
+      }
+
+      // Find the course and enroll the student in it
+      const enrolledCourse = await Course.findOneAndUpdate(
+        { _id: courseId },
+        { $push: { studentsEnroled: userId } },
+        { new: true }
+      )
+
+      if (!enrolledCourse) {
+        return res
+          .status(404)
+          .json({ success: false, error: `Course not found with ID: ${courseId}` })
+      }
+      console.log("Updated course: ", enrolledCourse)
+
+      const courseProgress = await CourseProgress.create({
+        courseID: courseId,
+        userId: userId,
+        completedVideos: [],
+      })
+
+      // Find the student and add the course to their list of enrolled courses
+      const enrolledStudent = await User.findByIdAndUpdate(
+        userId,
+        {
+          $push: {
+            courses: courseId,
+            courseProgress: courseProgress._id,
+          },
+        },
+        { new: true }
+      )
+
+      if (!enrolledStudent) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Student not found" })
+      }
+
+      console.log("Enrolled student: ", enrolledStudent)
+      
+      // Send an email notification to the enrolled student
+      try {
+        const emailResponse = await mailSender(
+          enrolledStudent.email,
+          `Successfully Enrolled into ${enrolledCourse.courseName}`,
+          courseEnrollmentEmail(
+            enrolledCourse.courseName,
+            `${enrolledStudent.firstName} ${enrolledStudent.lastName}`
+          )
+        )
+        console.log("Email sent successfully: ", emailResponse.response)
+      } catch (emailError) {
+        console.log("Email sending failed, but enrollment succeeded:", emailError)
+        // Don't fail the entire enrollment if email fails
+      }
+    } catch (error) {
+      console.log(error)
+      return res.status(500).json({ success: false, error: error.message })
+    }
+  }
+}

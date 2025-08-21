@@ -1,0 +1,5 @@
+const ctrl = require('./controllers/RatingandReview')
+console.log('Keys:', Object.keys(ctrl))
+console.log('createRating name:', ctrl.createRating && ctrl.createRating.name)
+console.log('updateRating name:', ctrl.updateRating && ctrl.updateRating.name)
+console.log('createRating source starts with:', ctrl.createRating.toString().slice(0, 120))

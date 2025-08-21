@@ -1,0 +1,5 @@
+const path = require('path')
+const resolved = require.resolve('./controllers/RatingandReview')
+console.log('Resolved path:', resolved)
+const src = require('fs').readFileSync(resolved, 'utf8')
+console.log('File head:', src.slice(0, 200))
