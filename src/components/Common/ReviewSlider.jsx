@@ -36,20 +36,34 @@ function ReviewSlider() {
   // console.log(reviews)
 
   return (
-    <div className="text-white">
-      <div className="my-[50px] h-[184px] max-w-maxContentTab lg:max-w-maxContent">
+    <div className="text-white w-full">
+      <div className="my-[50px] max-w-maxContentTab lg:max-w-maxContent mx-auto">
         {reviews && reviews.length > 0 ? (
           <Swiper
-            slidesPerView={4}
+            slidesPerView={1}
             spaceBetween={25}
             loop={true}
             freeMode={true}
             autoplay={{
-              delay: 2500,
+              delay: 3000,
               disableOnInteraction: false,
             }}
+            breakpoints={{
+              640: {
+                slidesPerView: 2,
+                spaceBetween: 20,
+              },
+              768: {
+                slidesPerView: 3,
+                spaceBetween: 25,
+              },
+              1024: {
+                slidesPerView: 4,
+                spaceBetween: 30,
+              },
+            }}
             modules={[FreeMode, Pagination, Autoplay]}
-            className="w-full "
+            className="w-full"
           >
             {reviews.map((review, i) => {
               // Only render if review has required data
@@ -59,7 +73,7 @@ function ReviewSlider() {
               
               return (
               <SwiperSlide key={i}>
-                <div className="flex flex-col gap-3 bg-richblack-800 p-3 text-[14px] text-richblack-25">
+                <div className="flex flex-col gap-4 bg-richblack-800 p-6 text-sm text-richblack-25 rounded-xl shadow-lg border border-richblack-700 hover:bg-richblack-700 transition-all duration-300 h-[280px]">
                   <div className="flex items-center gap-4">
                     <img
                       src={
@@ -67,32 +81,34 @@ function ReviewSlider() {
                           ? review?.user?.image
                           : `https://api.dicebear.com/5.x/initials/svg?seed=${review?.user?.firstName} ${review?.user?.lastName}`
                       }
-                      alt=""
-                      className="h-9 w-9 rounded-full object-cover"
+                      alt={`${review?.user?.firstName} ${review?.user?.lastName}`}
+                      className="h-12 w-12 rounded-full object-cover border-2 border-richblack-600"
                     />
-                    <div className="flex flex-col">
-                      <h1 className="font-semibold text-richblack-5">{`${review?.user?.firstName} ${review?.user?.lastName}`}</h1>
-                      <h2 className="text-[12px] font-medium text-richblack-500">
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <h1 className="font-semibold text-richblack-5 text-base truncate">{`${review?.user?.firstName} ${review?.user?.lastName}`}</h1>
+                      <h2 className="text-xs font-medium text-richblack-400 truncate">
                         {review?.course?.courseName}
                       </h2>
                     </div>
                   </div>
-                  <p className="font-medium text-richblack-25">
-                    {review?.review && review.review.split(" ").length > truncateWords
-                      ? `${review.review
-                          .split(" ")
-                          .slice(0, truncateWords)
-                          .join(" ")} ...`
-                      : `${review?.review || "No review text provided"}`}
-                  </p>
-                  <div className="flex items-center gap-2 ">
-                    <h3 className="font-semibold text-yellow-100">
+                  <div className="flex-1">
+                    <p className="font-medium text-richblack-25 leading-relaxed text-sm">
+                      {review?.review && review.review.split(" ").length > truncateWords
+                        ? `${review.review
+                            .split(" ")
+                            .slice(0, truncateWords)
+                            .join(" ")}...`
+                        : `${review?.review || "No review text provided"}`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 mt-auto">
+                    <h3 className="font-semibold text-yellow-100 text-base">
                       {review.rating.toFixed(1)}
                     </h3>
                     <ReactStars
                       count={5}
                       value={review.rating}
-                      size={20}
+                      size={18}
                       edit={false}
                       activeColor="#ffd700"
                       emptyIcon={<FaStar />}
@@ -103,11 +119,10 @@ function ReviewSlider() {
               </SwiperSlide>
               )
             })}
-            {/* <SwiperSlide>Slide 1</SwiperSlide> */}
           </Swiper>
         ) : (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-richblack-300">No reviews available at the moment.</p>
+          <div className="flex items-center justify-center h-[280px] bg-richblack-800 rounded-xl border border-richblack-700">
+            <p className="text-richblack-300 text-lg">No reviews available at the moment.</p>
           </div>
         )}
       </div>
