@@ -142,7 +142,7 @@ export function getPasswordResetToken(email, setEmailSent) {
   }
 }
 
-export function resetPassword(password, confirmPassword, token, navigate) {
+export function resetPassword(password, confirmPassword, otp, email, navigate) {
   return async (dispatch) => {
     const toastId = toast.loading("Loading...")
     dispatch(setLoading(true))
@@ -150,7 +150,8 @@ export function resetPassword(password, confirmPassword, token, navigate) {
       const response = await apiConnector("POST", RESETPASSWORD_API, {
         password,
         confirmPassword,
-        token,
+        otp,
+        email,
       })
 
       console.log("RESETPASSWORD RESPONSE............", response)
