@@ -1,26 +1,36 @@
-import { useState } from "react"
+
+import { useState, useEffect } from "react"
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai"
 import { BiArrowBack } from "react-icons/bi"
 import { useDispatch, useSelector } from "react-redux"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useLocation } from "react-router-dom"
 
 import { resetPassword } from "../services/operations/authAPI"
+
 
 function UpdatePassword() {
   const navigate = useNavigate()
   const dispatch = useDispatch()
+  const location = useLocation()
   const { loading } = useSelector((state) => state.auth)
   const [formData, setFormData] = useState({
-    email: "",
     otp: "",
     password: "",
     confirmPassword: "",
   })
-
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const { otp, password, confirmPassword } = formData
 
-  const { email, otp, password, confirmPassword } = formData
+  // Get email from navigation state
+  const email = location.state?.email || ""
+
+  useEffect(() => {
+    if (!email) {
+      // If no email in state, redirect to forgot password
+      navigate("/forgot-password")
+    }
+  }, [email, navigate])
 
   const handleOnChange = (e) => {
     setFormData((prevData) => ({
@@ -47,20 +57,6 @@ function UpdatePassword() {
             Enter the OTP sent to your email and your new password.
           </p>
           <form onSubmit={handleOnSubmit}>
-            <label className="w-full">
-              <p className="mb-1 text-[0.875rem] leading-[1.375rem] text-richblack-5">
-                Email Address <sup className="text-pink-200">*</sup>
-              </p>
-              <input
-                required
-                type="email"
-                name="email"
-                value={email}
-                onChange={handleOnChange}
-                placeholder="Enter your email address"
-                className="form-style w-full"
-              />
-            </label>
             <label className="mt-3 block w-full">
               <p className="mb-1 text-[0.875rem] leading-[1.375rem] text-richblack-5">
                 OTP <sup className="text-pink-200">*</sup>

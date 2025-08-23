@@ -61,9 +61,9 @@ function ForgotPassword() {
               </p>
             </Link>
             {emailSent && (
-              <Link to="/update-password">
+              <Link to="/update-password" state={{ email }}>
                 <p className="text-yellow-50">
-                  Enter OTP →
+                  Enter OTP 
                 </p>
               </Link>
             )}
