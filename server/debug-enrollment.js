@@ -3,7 +3,7 @@ const Course = require('./models/Course');
 
 (async () => {
   try {
-    await mongoose.connect('mongodb+srv://swaroopkumar799:xx4mw4CZOYI3yXA1@auth0.sdvipn5.mongodb.net/StudyNotionDB');
+    await mongoose.connect(process.env.MONGODB_URL);
     
     const userId = '68a4d0e8f449a4c9ca5dfa7e';
     const courseId = '68a4e4c2bcd3f1679db08c46';
